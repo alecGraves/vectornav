@@ -293,16 +293,17 @@ void BinaryAsyncMessageReceived(void* userData, Packet& p, size_t index)
         if (tf_ned_to_enu)
         {
             // If we want the orientation to be based on the reference label on the imu
-            tf2::Quaternion tf2_quat(q[0],q[1],q[2],q[3]);
             geometry_msgs::Quaternion quat_msg;
 
             if(frame_based_enu)
             {
+                tf2::Quaternion tf2_quat(q[0],q[1],q[2],q[3]);
                 // Create a rotation from NED -> ENU
-                tf2::Quaternion q_rotate;
-                q_rotate.setRPY (M_PI, 0.0, M_PI/2);
+                tf2::Quaternion q_rotate_ned_to_enu;
+                q_rotate_ned_to_enu.setRPY(M_PI, 0.0, M_PI/2);
+
                 // Apply the NED to ENU rotation such that the coordinate frame matches
-                tf2_quat = q_rotate*tf2_quat;
+                tf2_quat = q_rotate_ned_to_enu*tf2_quat;
                 quat_msg = tf2::toMsg(tf2_quat);
 
                 // Since everything is in the normal frame, no flipping required
@@ -316,19 +317,26 @@ void BinaryAsyncMessageReceived(void* userData, Packet& p, size_t index)
             }
             else
             {
-                // put into ENU - swap X/Y, invert Z
-                quat_msg.x = q[1];
-                quat_msg.y = q[0];
-                quat_msg.z = -q[2];
-                quat_msg.w = q[3];
+                double x(q[0]), y(q[1]), z(q[2]), w(q[3]);
 
-                // Flip x and y then invert z
-                msgIMU.angular_velocity.x = ar[1];
-                msgIMU.angular_velocity.y = ar[0];
+                // put into WORLD FRAME NED -> ENU - swap X/Y, invert Z
+                tf2::Quaternion tf2_quat(y, x, -z, w);
+
+                // rotate into east-forward
+                tf2::Quaternion q_rotate_to_east;
+                q_rotate_to_east.setRPY(0, 0, M_PI/2);
+                tf2_quat = tf2_quat*q_rotate_to_east;
+
+                quat_msg = tf2::toMsg(tf2_quat);
+
+                // LOCAL FRAME NED -> ENU: (x y z) -> (x -y -z)
+                msgIMU.angular_velocity.x = ar[0];
+                msgIMU.angular_velocity.y = -ar[1];
                 msgIMU.angular_velocity.z = -ar[2];
-                // Flip x and y then invert z
-                msgIMU.linear_acceleration.x = al[1];
-                msgIMU.linear_acceleration.y = al[0];
+
+                // LOCAL FRAME NED -> ENU: (x y z) -> (x -y -z)
+                msgIMU.linear_acceleration.x = al[0];
+                msgIMU.linear_acceleration.y = -al[1];
                 msgIMU.linear_acceleration.z = -al[2];
 
                 if (cd.hasAttitudeUncertainty())
