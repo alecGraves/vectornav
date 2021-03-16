@@ -1,3 +1,9 @@
+ros-melodic-vectornav (2.0.0-bionic2) bionic; urgency=medium
+
+  * Added ability to reset IMU via ROS service call
+
+ -- David Jensen <david@greenzie.com>  Tue, 16 Mar 2021 15:47:18 -0400
+
 ros-melodic-vectornav (2.0.0-bionic1) bionic; urgency=medium
 
   * install libvncxx to ros debian folder
